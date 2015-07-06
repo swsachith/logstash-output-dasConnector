@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-output-http (1.0.0)
+    logstash-output-dasConnector (1.0.0)
       ftw (~> 0.0.40)
       logstash-core (>= 1.4.0, < 2.0.0)
 
@@ -83,7 +83,7 @@ PLATFORMS
 
 DEPENDENCIES
   logstash-devutils
-  logstash-output-http!
+  logstash-output-dasConnector!
 
 BUNDLED WITH
    1.10.5
