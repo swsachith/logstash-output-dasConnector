@@ -55,6 +55,17 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
 
   config :message, :validate => :string
 
+  #
+  # ------- WSO2 Custom event related configs ------------
+  #
+
+  # The ID of the corresponding stream it publishes to
+  # This must be configured in the logstash configuration file
+  #
+  #ex: streamID => "TEST:1.0.0"
+  config :streamID, :validate => :string
+
+
   public
   def register
     require "ftw"
@@ -95,12 +106,12 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
     end
 
     case @http_method
-    when "put"
-      request = @agent.put(event.sprintf(@url))
-    when "post"
-      request = @agent.post(event.sprintf(@url))
-    else
-      @logger.error("Unknown verb:", :verb => @http_method)
+      when "put"
+        request = @agent.put(event.sprintf(@url))
+      when "post"
+        request = @agent.post(event.sprintf(@url))
+      else
+        @logger.error("Unknown verb:", :verb => @http_method)
     end
 
     if @headers
@@ -128,7 +139,7 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
       # Consume body to let this connection be reused
       rbody = ""
       response.read_body { |c| rbody << c }
-      #puts rbody
+        #puts rbody
     rescue Exception => e
       @logger.warn("Unhandled exception", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
