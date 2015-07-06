@@ -63,7 +63,7 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
   #ex: streamID => "TEST:1.0.0"
-  config :streamID, :validate => :string
+  config :streamID, :validate => :string, :required => :true
 
 
   public
