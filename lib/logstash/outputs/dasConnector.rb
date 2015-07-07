@@ -3,7 +3,7 @@ require "logstash/outputs/base"
 require "logstash/namespace"
 require "logstash/json"
 
-class LogStash::Outputs::Http < LogStash::Outputs::Base
+class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This output lets you `PUT` or `POST` events to a
   # generic HTTP(S) endpoint
   #
@@ -53,7 +53,7 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
   # Otherwise, the event is sent as json.
   config :format, :validate => ["json", "form", "message"], :default => "json"
 
-  config :message, :validate => :string
+  config :eventData, :validate => :string
 
   #
   # ------- WSO2 Custom event related configs ------------
@@ -63,7 +63,11 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
   #ex: streamID => "TEST:1.0.0"
-  config :streamID, :validate => :string, :required => :true
+  config :publishData, :required => :true
+
+  config :metaData, :required => :true
+
+  config :correlationData, :required => :true
 
 
   public
@@ -80,8 +84,8 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
       end
     end
     if @format == "message"
-      if @message.nil?
-        raise "message must be set if message format is used"
+      if @eventData.nil?
+        raise "eventData must be set if message format is used"
       end
       if @content_type.nil?
         raise "content_type must be set if message format is used"
@@ -105,6 +109,32 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
       evt = event.to_hash
     end
 
+    # ---- WSO2 connector related event configuration ------
+    # --------example configuration ------------
+    #          streamId : "TEST:1.0.0",
+    #          timestamp : 54326543254532, "optional"
+    #          publishData : {
+    #          },
+    #          metaData : {
+    #          },
+    #          correlationData : {
+    #          }
+
+    #constructing the wso2Event
+    wso2Event = Hash.new
+    wso2Event["publishData"] = @publishData
+    wso2Event["metaData"] = @metaData
+    wso2Event["correlationData"] = @correlationData
+    wso2Event["streamId"] = evt["streamId"]
+
+    evt["metaData"] = @metaData
+    evt["correlationData"] = @correlationData
+
+    puts evt
+    puts "printing wso2 event ==== \n"
+
+    puts wso2Event
+
     case @http_method
       when "put"
         request = @agent.put(event.sprintf(@url))
@@ -124,14 +154,14 @@ class LogStash::Outputs::Http < LogStash::Outputs::Base
 
     begin
       if @format == "json"
-        request.body = LogStash::Json.dump(evt)
+        request.body = LogStash::Json.dump(wso2Event)
       elsif @format == "message"
-        request.body = event.sprintf(@message)
+        request.body = event.sprintf(@eventData)
       else
         request.body = encode(evt)
       end
       #puts "#{request.port} / #{request.protocol}"
-      #puts request
+      puts request
       #puts
       #puts request.body
       response = @agent.execute(request)
