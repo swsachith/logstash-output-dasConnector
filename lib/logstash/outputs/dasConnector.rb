@@ -63,13 +63,15 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
 
-  config :payloadData, :required => :true, :validate => :array
-
   config :arbitraryValues, :required => :true, :validate => :hash
+
+  config :payloadFields, :required => :true, :validate => :hash
 
   config :metaData, :required => :true
 
   config :correlationData, :required => :true
+
+  config :streamDefinition, :required => :true, :validate => :hash
 
   public
   def register
@@ -111,7 +113,14 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     wso2Event = createWSO2Event(evt)
-    puts evt
+
+    #adding stream definition
+    addStreamRequest = addStreamDefinition(@agent,evt,event)
+
+    puts "adding stream definition \n"
+    #puts event.sprintf(@url)
+    puts addStreamRequest
+
     puts "printing wso2 event ==== \n"
     puts wso2Event
 
@@ -141,7 +150,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
         request.body = encode(evt)
       end
       #puts "#{request.port} / #{request.protocol}"
-      puts request
+      #puts request
       #puts
       #puts request.body
       response = @agent.execute(request)
@@ -161,26 +170,25 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end.join("&")
   end # def encode
 
-    def createWSO2Event(event)
 
-      # ---- WSO2 connector related event configuration ------
-      # --------example configuration ------------
-      #          streamId : "TEST:1.0.0",
-      #          timestamp : 54326543254532, "optional"
-      #          payloadData : {
-      #          },
-      #          metaData : {
-      #          },
-      #          correlationData : {
-      #          }
-      #          arbitraryDataMap : {
-      #          }
-
+  # ---- WSO2 connector related event configuration ------
+  # --------example configuration ------------
+  #          streamId : "TEST:1.0.0",
+  #          timestamp : 54326543254532, "optional"
+  #          payloadData : {
+  #          },
+  #          metaData : {
+  #          },
+  #          correlationData : {
+  #          }
+  #          arbitraryDataMap : {
+  #          }
+  def createWSO2Event(event)
       #constructing the wso2Event
       wso2Event = Hash.new
 
       #processing the payloadData Field
-      @payloadData.map! { |item| item = event[item] }
+      @payloadData = Hash[@payloadFields.map{|key,value| [key,event[key]] } ]
 
       # getting the arbitrary values map with its values from the event
       @processedArbitraryValues = Hash[@arbitraryValues.map{|key,value| [key,event[key]] } ]
@@ -194,5 +202,58 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       wso2Event["arbitraryDataMap"] = @processedArbitraryValues
 
       return wso2Event
+  end
+
+  #example stream definition
+  # streamDef = {
+  #          name : "TEST",
+  #          version : "1.0.0",
+  #          nickName : "test",
+  #          description : "sample description"
+  #          payloadData : {
+  #              name : "STRING",
+  #              married : "BOOLEAN",
+  #              age : "INTEGER"
+  #          },
+  #         metaData : {
+  #              timestamp : "LONG"
+  #          },
+  #         correlationData : {
+  #
+  #          },
+  #          tags : []
+  #      }
+  public
+  def addStreamDefinition(agent,processedEvent,recievedEvent)
+    streamDefinition = Hash.new
+    streamDefinition = @streamDefinition
+    streamDefinition["payloadData"] = @payloadFields
+    case @http_method
+      when "put"
+        addStreamRequest = agent.put(recievedEvent.sprintf(@url))
+      when "post"
+        addStreamRequest = agent.post(recievedEvent.sprintf(@url))
+      else
+        @logger.error("Unknown verb:", :verb => @http_method)
     end
+    if @headers
+      @headers.each do |k,v|
+        addStreamRequest.headers[k] = recievedEvent.sprintf(v)
+      end
+    end
+
+    addStreamRequest["Content-Type"] = @content_type
+
+    if @format == "json"
+      addStreamRequest.body = LogStash::Json.dump(streamDefinition)
+    end
+
+    addStream_response = agent.execute(addStreamRequest)
+
+    # Consume body to let this connection be reused
+    #rbody = ""
+    #response.read_body { |c| rbody << c }
+
+    return addStreamRequest.body
+  end
 end
