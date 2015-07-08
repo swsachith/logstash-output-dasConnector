@@ -62,13 +62,14 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # The ID of the corresponding stream it publishes to
   # This must be configured in the logstash configuration file
   #
-  #ex: streamID => "TEST:1.0.0"
-  config :publishData, :required => :true
+
+  config :publishData, :required => :true, :validate => :array
+
+  config :arbitraryValues, :required => :true, :validate => :hash
 
   config :metaData, :required => :true
 
   config :correlationData, :required => :true
-
 
   public
   def register
@@ -109,30 +110,9 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       evt = event.to_hash
     end
 
-    # ---- WSO2 connector related event configuration ------
-    # --------example configuration ------------
-    #          streamId : "TEST:1.0.0",
-    #          timestamp : 54326543254532, "optional"
-    #          publishData : {
-    #          },
-    #          metaData : {
-    #          },
-    #          correlationData : {
-    #          }
-
-    #constructing the wso2Event
-    wso2Event = Hash.new
-    wso2Event["publishData"] = @publishData
-    wso2Event["metaData"] = @metaData
-    wso2Event["correlationData"] = @correlationData
-    wso2Event["streamId"] = evt["streamId"]
-
-    evt["metaData"] = @metaData
-    evt["correlationData"] = @correlationData
-
+    wso2Event = createWSO2Event(evt)
     puts evt
     puts "printing wso2 event ==== \n"
-
     puts wso2Event
 
     case @http_method
@@ -180,4 +160,37 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       CGI.escape(key) + "=" + CGI.escape(value)
     end.join("&")
   end # def encode
+
+    def createWSO2Event(event)
+
+      # ---- WSO2 connector related event configuration ------
+      # --------example configuration ------------
+      #          streamId : "TEST:1.0.0",
+      #          timestamp : 54326543254532, "optional"
+      #          publishData : {
+      #          },
+      #          metaData : {
+      #          },
+      #          correlationData : {
+      #          }
+
+      #constructing the wso2Event
+      wso2Event = Hash.new
+
+      #processing the publishData Field
+      @publishData.map! { |item| item = event[item] }
+
+      # getting the arbitrary values map with its values from the event
+      @processedArbitraryValues = Hash[@arbitraryValues.map{|key,value| [key,event[key]] } ]
+
+      puts @processedArbitraryValues
+
+      wso2Event["publishData"] = @publishData
+      wso2Event["metaData"] = @metaData
+      wso2Event["correlationData"] = @correlationData
+      wso2Event["streamId"] = event["streamId"]
+      wso2Event["arbitraryDataMap"] = @processedArbitraryValues
+
+      return wso2Event
+    end
 end
