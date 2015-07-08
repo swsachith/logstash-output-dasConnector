@@ -63,7 +63,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
 
-  config :publishData, :required => :true, :validate => :array
+  config :payloadData, :required => :true, :validate => :array
 
   config :arbitraryValues, :required => :true, :validate => :hash
 
@@ -167,28 +167,30 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       # --------example configuration ------------
       #          streamId : "TEST:1.0.0",
       #          timestamp : 54326543254532, "optional"
-      #          publishData : {
+      #          payloadData : {
       #          },
       #          metaData : {
       #          },
       #          correlationData : {
       #          }
+      #          arbitraryDataMap : {
+      #          }
 
       #constructing the wso2Event
       wso2Event = Hash.new
 
-      #processing the publishData Field
-      @publishData.map! { |item| item = event[item] }
+      #processing the payloadData Field
+      @payloadData.map! { |item| item = event[item] }
 
       # getting the arbitrary values map with its values from the event
       @processedArbitraryValues = Hash[@arbitraryValues.map{|key,value| [key,event[key]] } ]
 
       puts @processedArbitraryValues
 
-      wso2Event["publishData"] = @publishData
+      wso2Event["streamId"] = event["streamId"]
+      wso2Event["payloadData"] = @payloadData
       wso2Event["metaData"] = @metaData
       wso2Event["correlationData"] = @correlationData
-      wso2Event["streamId"] = event["streamId"]
       wso2Event["arbitraryDataMap"] = @processedArbitraryValues
 
       return wso2Event
