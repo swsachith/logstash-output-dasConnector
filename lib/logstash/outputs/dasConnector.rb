@@ -3,6 +3,9 @@ require "logstash/outputs/base"
 require "logstash/namespace"
 require "logstash/json"
 
+#Util module of the DAS Connector
+require "stream_manager"
+
 class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This output lets you `PUT` or `POST` events to a
   # generic HTTP(S) endpoint
@@ -90,17 +93,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
           @content_type = "application/json"
       end
     end
-    if @format == "message"
-      if @eventData.nil?
-        raise "eventData must be set if message format is used"
-      end
-      if @content_type.nil?
-        raise "content_type must be set if message format is used"
-      end
-      unless @mapping.nil?
-        @logger.warn "mapping is not supported and will be ignored if message format is used"
-      end
-    end
+
+    #Get the Schema
+    current_schema = DASUtils.getStreamDefinition(@agent,@schemaDefinition)
+    puts "******************printing the current schema ****************************************\n"
+    puts current_schema
   end
 
   # def register
@@ -125,11 +122,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #adding stream definition
     addStreamRequest = addStreamDefinition(@agent, modifiedEvent, event)
 
-    #Get the Schema
-    current_schema = getStreamDefinition(@agent,event,@schemaDefinition)
-
-    puts "printing the current schema\n"
-    puts current_schema
 
     puts "adding stream definition \n"
     #puts event.sprintf(@url)
@@ -276,25 +268,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #response.read_body { |c| rbody << c }
 
     return addStreamRequest.body
-  end
-
-
-  #This method returns the existing schema definition
-  def getStreamDefinition(agent,recievedEvent,schemaDefinition)
-    getSchema_request = Hash.new
-    getSchema_request = agent.get(recievedEvent.sprintf(schemaDefinition["schemaURL"]))
-
-    if @headers
-      @headers.each do |k, v|
-        getSchema_request.headers[k] = recievedEvent.sprintf(v)
-      end
-    end
-
-    schema_response = agent.execute(getSchema_request)
-    response = ""
-    schema_response.read_body { |c| response << c }
-
-    return response
   end
 
   def setStreamDefinition(agent)

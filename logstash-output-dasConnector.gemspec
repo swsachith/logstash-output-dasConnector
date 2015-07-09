@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.authors         = ["Elastic"]
   s.email           = 'info@elastic.co'
   s.homepage        = "http://www.elastic.co/guide/en/logstash/current/index.html"
-  s.require_paths = ["lib"]
+  s.require_paths = ["lib","lib/logstash/outputs"]
 
   # Files
   s.files = `git ls-files`.split($\)+::Dir.glob('vendor/*')
