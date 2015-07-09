@@ -73,6 +73,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
   config :streamDefinition, :required => :true, :validate => :hash
 
+  config :schemaDefinition, :required => :true, :validate => :hash
+
   public
   def register
     require "ftw"
@@ -123,6 +125,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #adding stream definition
     addStreamRequest = addStreamDefinition(@agent, modifiedEvent, event)
 
+    #Get the Schema
+    current_schema = getStreamDefinition(@agent,event,@schemaDefinition)
+
+    puts "printing the current schema\n"
+    puts current_schema
 
     puts "adding stream definition \n"
     #puts event.sprintf(@url)
@@ -271,41 +278,23 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     return addStreamRequest.body
   end
 
-  def getSc(agent, processedEvent, recievedEvent)
-    streamDefinition = Hash.new
-    streamDefinition = @streamDefinition
-    streamDefinition["payloadData"] = @payloadFields
-    case @http_method
-      when "put"
-        addStreamRequest = agent.put(recievedEvent.sprintf(@url))
-      when "post"
-        addStreamRequest = agent.post(recievedEvent.sprintf(@url))
-      else
-        @logger.error("Unknown verb:", :verb => @http_method)
-    end
+
+  #This method returns the existing schema definition
+  def getStreamDefinition(agent,recievedEvent,schemaDefinition)
+    getSchema_request = Hash.new
+    getSchema_request = agent.get(recievedEvent.sprintf(schemaDefinition["schemaURL"]))
+
     if @headers
       @headers.each do |k, v|
-        addStreamRequest.headers[k] = recievedEvent.sprintf(v)
+        getSchema_request.headers[k] = recievedEvent.sprintf(v)
       end
     end
 
-    addStreamRequest["Content-Type"] = @content_type
+    schema_response = agent.execute(getSchema_request)
+    response = ""
+    schema_response.read_body { |c| response << c }
 
-    if @format == "json"
-      addStreamRequest.body = LogStash::Json.dump(streamDefinition)
-    end
-
-    addStream_response = agent.execute(addStreamRequest)
-
-    # Consume body to let this connection be reused
-    #rbody = ""
-    #response.read_body { |c| rbody << c }
-
-    return addStreamRequest.body
-  end
-
-  def getStreamDefinition(agent)
-
+    return response
   end
 
   def setStreamDefinition(agent)
