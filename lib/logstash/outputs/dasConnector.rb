@@ -1,3 +1,21 @@
+=begin
+/*
+ * Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+=end
+
 # encoding: utf-8
 require "logstash/outputs/base"
 require "logstash/namespace"
@@ -90,23 +108,23 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
     if @content_type.nil?
       case @format
-      when "form";
-        @content_type = "application/x-www-form-urlencoded"
+        when "form";
+          @content_type = "application/x-www-form-urlencoded"
         when "json";
           @content_type = "application/json"
       end
     end
 
     #Get the Schema
-    current_schema = SchemaManager.getSchemaDefinition(@agent,@schemaDefinition)
+    current_schema = SchemaManager.getSchemaDefinition(@agent, @schemaDefinition)
     puts "******************printing the current schema ****************************************\n"
     puts current_schema
     puts "************************setting the new schema *******************\n"
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent,@payloadFields,@arbitraryValues,@schemaDefinition)
+    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @schemaDefinition)
 
     #adding stream definition
-    addStreamRequest = StreamManager.addStreamDefinition(@agent,@streamDefinition,@payloadFields,@url)
+    addStreamRequest = StreamManager.addStreamDefinition(@agent, @streamDefinition, @payloadFields, @url)
 
   end
 
