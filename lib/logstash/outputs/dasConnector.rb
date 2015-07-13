@@ -28,13 +28,8 @@ require "schema_manager"
 require "json"
 
 class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
-  # This output lets you `PUT` or `POST` events to a
-  # generic HTTP(S) endpoint
-  #
-  # Additionally, you are given the option to customize
-  # the headers sent as well as basic customization of the
-  # event json itself.
 
+  #name of the plugin
   config_name "dasConnector"
 
   # URL to use
@@ -87,16 +82,16 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
 
+  #vent related data
+  config :payloadFields, :required => :true, :validate => :hash
+  config :metaData, :required => :true
+  config :correlationData, :required => :true
   config :arbitraryValues, :required => :true, :validate => :hash
 
-  config :payloadFields, :required => :true, :validate => :hash
-
-  config :metaData, :required => :true
-
-  config :correlationData, :required => :true
-
+  #stream definition details
   config :streamDefinition, :required => :true, :validate => :hash
 
+  #schema related details map
   config :schemaDefinition, :required => :true, :validate => :hash
 
   public
