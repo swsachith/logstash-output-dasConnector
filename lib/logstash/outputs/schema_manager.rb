@@ -1,7 +1,7 @@
 module SchemaManager
 
   #This method returns the existing schema definition
-  def SchemaManager.getSchemaDefinition(agent,schemaDefinition)
+  def SchemaManager.getSchemaDefinition(agent, schemaDefinition)
     getSchema_request = Hash.new
     getSchema_request = agent.get(schemaDefinition["schemaURL"])
 
@@ -12,31 +12,48 @@ module SchemaManager
   end
 
   # this method alters the schema if needed
-  def SchemaManager.setSchemaDefinition(agent,payload,arbitrary_map)
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, schemaDefinition)
     getSchemaResponse_string = '{"tableName":"TEST","schema":{"columns":{"col1":{"type":"STRING", "isIndexed":true}}}}'
-    current_schema = JSON.parse(getSchemaResponse_string)
-
-    schema= current_schema["schema"]
-    columns = schema["columns"]
-
-    # get the current columns and their types
-    current_columns=Hash.new
-    columns.each do |k, v|
-      current_columns[k] = v["type"]
-    end
-
-    #TODO check if it's null then set the default schema
+    #getSchemaResponse_string = ""
 
     # combine the arbitrary map and the payload maps
     new_columns = payload.merge(arbitrary_map)
 
-    # testing if the schema has changed
-    if(current_columns == new_columns)
-      return
-    end
+    #TODO come up with the better way to test if the schema is not set
+    #if the schema is already there replace it
+    unless (getSchemaResponse_string.length < 5)
+      current_schema = JSON.parse(getSchemaResponse_string)
 
-    # combine and create the new columns
-    new_schema = new_columns.merge(current_columns)
+      schema= current_schema["schema"]
+      columns = schema["columns"]
+
+      # get the current columns and their types
+      current_columns=Hash.new
+      columns.each do |k, v|
+        current_columns[k] = v["type"]
+      end
+
+      #TODO check if it's null then set the default schema
+
+      # testing if the schema has changed
+      if (current_columns == new_columns)
+        return
+      end
+
+      # combine and create the new columns
+      new_schema = new_columns.merge(current_columns)
+
+      # getting the updated schema
+      updated_schema = current_schema
+      updated_schema.delete("schema")
+
+
+      #else we need to create a new schema
+    else
+      updated_schema = Hash.new
+      updated_schema["tableName"] = schemaDefinition["tableName"]
+      new_schema = new_columns
+    end
 
     #adding other necessary fields and formating
     new_schema.each do |key, value|
@@ -47,14 +64,11 @@ module SchemaManager
       new_schema[key] = new_value
     end
 
-    # getting the updated schema
-    updated_schema = current_schema
-    updated_schema.delete("schema")
-
-    #replacing the old schema with the new one
+    #replacing the schema map with the new one
     schema_map = {"columns" => new_schema}
     updated_schema["schema"] = schema_map
 
     return updated_schema
   end
+
 end

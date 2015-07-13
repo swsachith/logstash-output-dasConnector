@@ -103,7 +103,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     puts current_schema
     puts "************************setting the new schema *******************\n"
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent,@payloadFields,@arbitraryValues)
+    puts SchemaManager.setSchemaDefinition(@agent,@payloadFields,@arbitraryValues,@schemaDefinition)
 
     #adding stream definition
     addStreamRequest = StreamManager.addStreamDefinition(@agent,@streamDefinition,@payloadFields,@url)

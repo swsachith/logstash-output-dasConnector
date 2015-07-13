@@ -50,3 +50,15 @@ new_schema.each do |key, value|
 end
 
 puts new_schema
+
+test_response = ''
+test =  test_response.length < 5
+
+unless test
+  puts test
+  puts "test is true"
+else
+  puts "test is false"
+end
+test_schema = JSON.parse(test_response)
+puts test_schema.nil?
