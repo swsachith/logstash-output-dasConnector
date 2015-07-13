@@ -1,5 +1,17 @@
 module SchemaManager
 
+  #This method returns the existing schema definition
+  def SchemaManager.getSchemaDefinition(agent,schemaDefinition)
+    getSchema_request = Hash.new
+    getSchema_request = agent.get(schemaDefinition["schemaURL"])
+
+    schema_response = agent.execute(getSchema_request)
+    response = ""
+    schema_response.read_body { |c| response << c }
+    return response
+  end
+
+  # this method alters the schema if needed
   def SchemaManager.setSchemaDefinition(agent,payload,arbitrary_map)
     getSchemaResponse_string = '{"tableName":"TEST","schema":{"columns":{"col1":{"type":"STRING", "isIndexed":true}}}}'
     current_schema = JSON.parse(getSchemaResponse_string)
@@ -26,11 +38,12 @@ module SchemaManager
     # combine and create the new columns
     new_schema = new_columns.merge(current_columns)
 
-    #adding isIndexed = true to all
+    #adding other necessary fields and formating
     new_schema.each do |key, value|
       new_value = Hash.new
       new_value["type"] = value.upcase
       new_value["isIndexed"] = "true"
+      new_value["isScoreParam"] = false
       new_schema[key] = new_value
     end
 

@@ -90,22 +90,25 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
     if @content_type.nil?
       case @format
-        when "form";
-          @content_type = "application/x-www-form-urlencoded"
+      when "form";
+        @content_type = "application/x-www-form-urlencoded"
         when "json";
           @content_type = "application/json"
       end
     end
 
     #Get the Schema
-    current_schema = DASUtils.getStreamDefinition(@agent,@schemaDefinition)
+    current_schema = SchemaManager.getSchemaDefinition(@agent,@schemaDefinition)
     puts "******************printing the current schema ****************************************\n"
     puts current_schema
     puts "************************setting the new schema *******************\n"
+    #setting the new schema if required
     puts SchemaManager.setSchemaDefinition(@agent,@payloadFields,@arbitraryValues)
-  end
 
-  # def register
+    #adding stream definition
+    addStreamRequest = StreamManager.addStreamDefinition(@agent,@streamDefinition,@payloadFields,@url)
+
+  end
 
   public
   def receive(event)
@@ -123,14 +126,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
     # create the Log event
     wso2EventResponse = createWSO2Event(modifiedEvent, event)
-
-    #adding stream definition
-    addStreamRequest = addStreamDefinition(@agent, modifiedEvent, event)
-
-
-    puts "adding stream definition \n"
-    #puts event.sprintf(@url)
-    puts addStreamRequest
 
     puts "printing wso2 event ==== \n"
     puts wso2EventResponse
@@ -178,7 +173,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
     request["Content-Type"] = @content_type
 
-
     #constructing the wso2Event
     wso2Event = Hash.new
 
@@ -219,60 +213,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     return response
-  end
-
-  #example stream definition
-  # streamDef = {
-  #          name : "TEST",
-  #          version : "1.0.0",
-  #          nickName : "test",
-  #          description : "sample description"
-  #          payloadData : {
-  #              name : "STRING",
-  #              married : "BOOLEAN",
-  #              age : "INTEGER"
-  #          },
-  #         metaData : {
-  #              timestamp : "LONG"
-  #          },
-  #         correlationData : {
-  #
-  #          },
-  #          tags : []
-  #      }
-
-  public
-  def addStreamDefinition(agent, processedEvent, recievedEvent)
-    streamDefinition = Hash.new
-    streamDefinition = @streamDefinition
-    streamDefinition["payloadData"] = @payloadFields
-    case @http_method
-      when "put"
-        addStreamRequest = agent.put(recievedEvent.sprintf(@url))
-      when "post"
-        addStreamRequest = agent.post(recievedEvent.sprintf(@url))
-      else
-        @logger.error("Unknown verb:", :verb => @http_method)
-    end
-    if @headers
-      @headers.each do |k, v|
-        addStreamRequest.headers[k] = recievedEvent.sprintf(v)
-      end
-    end
-
-    addStreamRequest["Content-Type"] = @content_type
-
-    if @format == "json"
-      addStreamRequest.body = LogStash::Json.dump(streamDefinition)
-    end
-
-    addStream_response = agent.execute(addStreamRequest)
-
-    # Consume body to let this connection be reused
-    #rbody = ""
-    #response.read_body { |c| rbody << c }
-
-    return addStreamRequest.body
   end
 
 end
