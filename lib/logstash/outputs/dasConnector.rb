@@ -3,8 +3,11 @@ require "logstash/outputs/base"
 require "logstash/namespace"
 require "logstash/json"
 
-#Util module of the DAS Connector
+#Util modules of the DAS Connector
 require "stream_manager"
+require "schema_manager"
+
+require "json"
 
 class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This output lets you `PUT` or `POST` events to a
@@ -98,6 +101,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     current_schema = DASUtils.getStreamDefinition(@agent,@schemaDefinition)
     puts "******************printing the current schema ****************************************\n"
     puts current_schema
+    puts "************************setting the new schema *******************\n"
+    puts SchemaManager.setSchemaDefinition(@agent,@payloadFields,@arbitraryValues)
   end
 
   # def register
@@ -155,7 +160,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #          arbitraryDataMap : {
   #          }
   def createWSO2Event(modifiedEvent, event)
-
 
     case @http_method
       when "put"
@@ -236,6 +240,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #          },
   #          tags : []
   #      }
+
   public
   def addStreamDefinition(agent, processedEvent, recievedEvent)
     streamDefinition = Hash.new
@@ -270,7 +275,4 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     return addStreamRequest.body
   end
 
-  def setStreamDefinition(agent)
-
-  end
 end
