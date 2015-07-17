@@ -62,6 +62,9 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #    mapping => ["foo", "%{host}", "bar", "%{type}"]
   config :mapping, :validate => :hash
 
+  # validate SSL?
+  config :verify_ssl, :validate => :boolean, :default => true
+
   # Set the format of the http body.
   #
   # If form, then the body will be the mapping (or whole event) converted
@@ -82,14 +85,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   # This must be configured in the logstash configuration file
   #
 
-  #vent related data
+  #event related data
   config :payloadFields, :required => :true, :validate => :hash
   config :metaData, :required => :true
   config :correlationData, :required => :true
   config :arbitraryValues, :required => :true, :validate => :hash
-
-  #stream definition details
-  config :streamDefinition, :required => :true, :validate => :hash
 
   #schema related details map
   config :schemaDefinition, :required => :true, :validate => :hash
@@ -114,12 +114,13 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     current_schema = SchemaManager.getSchemaDefinition(@agent, @schemaDefinition)
     puts "******************printing the current schema ****************************************\n"
     puts current_schema
+    puts current_schema["message"]
     puts "************************setting the new schema *******************\n"
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @schemaDefinition)
+    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @schemaDefinition,current_schema["message"])
 
     #adding stream definition
-    addStreamRequest = StreamManager.addStreamDefinition(@agent, @streamDefinition, @payloadFields, @url)
+    #addStreamRequest = StreamManager.addStreamDefinition(@agent, @streamDefinition, @payloadFields, @url)
 
   end
 
@@ -138,13 +139,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     # create the Log event
-    wso2EventResponse = createWSO2Event(modifiedEvent, event)
+    wso2EventResponse = processWSO2Event(modifiedEvent, event)
 
     puts "printing wso2 event ==== \n"
     puts wso2EventResponse
   end
-
-  # def receive
 
   def encode(hash)
     return hash.collect do |key, value|
@@ -157,7 +156,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
   # ---- WSO2 connector related event configuration ------
   # --------example configuration ------------
-  #          streamId : "TEST:1.0.0",
+  #          streamName : "TEST",
+  #          streamVersion : "1.0.0",
   #          timestamp : 54326543254532, "optional"
   #          payloadData : {
   #          },
@@ -167,7 +167,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #          }
   #          arbitraryDataMap : {
   #          }
-  def createWSO2Event(modifiedEvent, event)
+  def processWSO2Event(modifiedEvent, event)
 
     case @http_method
       when "put"
@@ -184,7 +184,9 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       end
     end
 
-    request["Content-Type"] = @content_type
+    request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
+
+    request["Content-Type"] = "application/json"
 
     #constructing the wso2Event
     wso2Event = Hash.new
@@ -195,26 +197,23 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     # getting the arbitrary values map with its values from the event
     @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
 
-    puts @processedArbitraryValues
+    #puts @processedArbitraryValues
 
-    wso2Event["streamId"] = modifiedEvent["streamId"]
+    #wso2Event["streamId"] = modifiedEvent["streamId"]
+    #wso2Event["streamId"] = "logs:1.0.0"
+    wso2Event["streamName"] = "logs"
+    wso2Event["streamVersion"] = "1.0.0"
     wso2Event["payloadData"] = @payloadData
     wso2Event["metaData"] = @metaData
     wso2Event["correlationData"] = @correlationData
     wso2Event["arbitraryDataMap"] = @processedArbitraryValues
 
     begin
-      if @format == "json"
-        request.body = LogStash::Json.dump(wso2Event)
-      elsif @format == "message"
-        request.body = event.sprintf(@eventData)
-      else
-        request.body = encode(evt)
-      end
-      #puts "#{request.port} / #{request.protocol}"
-      #puts request
-      #puts
-      #puts request.body
+
+      request.body = LogStash::Json.dump(wso2Event)
+      #request.body = '{"streamName":"logs","streamVersion":"1.0.0","payloadData":{"type":"syslog"},"metaData":{},"correlationData":{},"arbitraryDataMap":{}}'
+      #request.body = "{'streamName':'logs','streamVersion':'1.0.0','payloadData':{'type':'syslog'},'metaData':{},'correlationData':{},'arbitraryDataMap':{}}"
+
       response = @agent.execute(request)
 
       # Consume body to let this connection be reused
@@ -224,7 +223,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     rescue Exception => e
       @logger.warn("Unhandled exception", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
-
+    puts request.body
     return response
   end
 

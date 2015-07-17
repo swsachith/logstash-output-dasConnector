@@ -20,18 +20,21 @@ module SchemaManager
 
   #This method returns the existing schema definition
   def SchemaManager.getSchemaDefinition(agent, schemaDefinition)
-    getSchema_request = Hash.new
-    getSchema_request = agent.get(schemaDefinition["schemaURL"])
+
+    #getSchema_request = agent.get(schemaDefinition["schemaURL"])
+    getSchema_request = agent.get("http://localhost:9763/portal/controllers/apis/analytics.jag?type=10&tableName=LOGS")
+    getSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
 
     schema_response = agent.execute(getSchema_request)
-    response = ""
-    schema_response.read_body { |c| response << c }
-    return response
+    puts schema_response["body"]
+    new_response = ""
+    schema_response.read_body { |c| new_response << c }
+    return new_response
   end
 
   # this method alters the schema if needed
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, schemaDefinition)
-    getSchemaResponse_string = '{"tableName":"TEST","schema":{"columns":{"col1":{"type":"STRING", "isIndexed":true}}}}'
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, schemaDefinition,currentSchemaString,url)
+    currentSchemaString = '{"tableName":"TEST","schema":{"columns":{"col1":{"type":"STRING", "isIndexed":true}}}}'
     #getSchemaResponse_string = ""
 
     # combine the arbitrary map and the payload maps
@@ -39,8 +42,8 @@ module SchemaManager
 
     #TODO come up with the better way to test if the schema is not set
     #if the schema is already there replace it
-    unless (getSchemaResponse_string.length < 5)
-      current_schema = JSON.parse(getSchemaResponse_string)
+    unless (currentSchemaString.length < 5)
+      current_schema = JSON.parse(currentSchemaString)
 
       schema= current_schema["schema"]
       columns = schema["columns"]
@@ -50,8 +53,6 @@ module SchemaManager
       columns.each do |k, v|
         current_columns[k] = v["type"]
       end
-
-      #TODO check if it's null then set the default schema
 
       # testing if the schema has changed
       if (current_columns == new_columns)
@@ -64,7 +65,6 @@ module SchemaManager
       # getting the updated schema
       updated_schema = current_schema
       updated_schema.delete("schema")
-
 
       #else we need to create a new schema
     else
@@ -85,6 +85,12 @@ module SchemaManager
     #replacing the schema map with the new one
     schema_map = {"columns" => new_schema}
     updated_schema["schema"] = schema_map
+
+
+    setSchema_request = agent.post("url")
+    setSchema_request.body = updated_schema
+    setSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
+    response = agent.execute(setSchema_request)
 
     return updated_schema
   end
