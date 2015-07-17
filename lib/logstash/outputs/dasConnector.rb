@@ -26,6 +26,7 @@ require "stream_manager"
 require "schema_manager"
 
 require "json"
+require "date"
 
 class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
@@ -93,6 +94,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
   #schema related details map
   config :schemaDefinition, :required => :true, :validate => :hash
+  config :streamName, :required => :true, :validate => :string
+  config :streamVersion, :required => :true, :validate => :string
 
   public
   def register
@@ -110,14 +113,15 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       end
     end
 
+    processedURL = @url  + "/portal/controllers/apis/analytics.jag"
+
     #Get the Schema
-    current_schema = SchemaManager.getSchemaDefinition(@agent, @schemaDefinition)
+    current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition)
     puts "******************printing the current schema ****************************************\n"
     puts current_schema
-    puts current_schema["message"]
     puts "************************setting the new schema *******************\n"
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @schemaDefinition,current_schema["message"])
+    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@schemaDefinition,current_schema,processedURL)
 
     #adding stream definition
     #addStreamRequest = StreamManager.addStreamDefinition(@agent, @streamDefinition, @payloadFields, @url)
@@ -168,12 +172,13 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #          arbitraryDataMap : {
   #          }
   def processWSO2Event(modifiedEvent, event)
+    publishURL =  @url+"/portal/controllers/apis/analytics.jag?type=24"
 
     case @http_method
       when "put"
-        request = @agent.put(event.sprintf(@url))
+        request = @agent.put(event.sprintf(publishURL))
       when "post"
-        request = @agent.post(event.sprintf(@url))
+        request = @agent.post(event.sprintf(publishURL))
       else
         @logger.error("Unknown verb:", :verb => @http_method)
     end
@@ -194,15 +199,22 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #processing the payloadData Field
     @payloadData = Hash[@payloadFields.map { |key, value| [key, modifiedEvent[key]] }]
 
+    #processing the correlationData Field
+    activityID = modifiedEvent["activity_id"]
+    if activityID.nil?
+      activityID = (0...8).map { (65 + rand(26)).chr }.join
+    end
+    @correlationData["activity_id"] = activityID
+
     # getting the arbitrary values map with its values from the event
     @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
 
-    #puts @processedArbitraryValues
 
-    #wso2Event["streamId"] = modifiedEvent["streamId"]
-    #wso2Event["streamId"] = "logs:1.0.0"
-    wso2Event["streamName"] = "logs"
-    wso2Event["streamVersion"] = "1.0.0"
+    #puts @processedArbitraryValues
+    #@arbitraryValues["timestamp"] = DateTime.parse(modifiedEvent["syslog_timestamp"]).to_time.to_i
+    #puts modifiedEvent["syslog_timestamp"]
+    wso2Event["streamName"] = @streamName
+    wso2Event["streamVersion"] = @streamVersion
     wso2Event["payloadData"] = @payloadData
     wso2Event["metaData"] = @metaData
     wso2Event["correlationData"] = @correlationData

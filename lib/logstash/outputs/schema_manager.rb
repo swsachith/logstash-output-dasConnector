@@ -19,10 +19,11 @@
 module SchemaManager
 
   #This method returns the existing schema definition
-  def SchemaManager.getSchemaDefinition(agent, schemaDefinition)
+  def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition)
 
-    #getSchema_request = agent.get(schemaDefinition["schemaURL"])
-    getSchema_request = agent.get("http://localhost:9763/portal/controllers/apis/analytics.jag?type=10&tableName=LOGS")
+    processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
+    #getSchema_request = agent.get("http://localhost:9763/portal/controllers/apis/analytics.jag?type=10&tableName=LOGS")
+    getSchema_request = agent.get(processedSchemaURL)
     getSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
 
     schema_response = agent.execute(getSchema_request)
@@ -33,26 +34,44 @@ module SchemaManager
   end
 
   # this method alters the schema if needed
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, schemaDefinition,currentSchemaString,url)
-    currentSchemaString = '{"tableName":"TEST","schema":{"columns":{"col1":{"type":"STRING", "isIndexed":true}}}}'
-    #getSchemaResponse_string = ""
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map, schemaDefinition,currentSchemaString,url)
+    processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
     # combine the arbitrary map and the payload maps
-    new_columns = payload.merge(arbitrary_map)
+    modifiedCorrelationMap = Hash.new
+    correlation_map.each do |key , value|
+      modifiedCorrelationMap["correlation_"+key] = value
+    end
+
+    # combine the arbitrary map and the payload maps
+    modifiedArbitraryMap = Hash.new
+    arbitrary_map.each do |key , value|
+      modifiedArbitraryMap["_"+key] = value
+    end
+
+    correlation_addedColumns = modifiedArbitraryMap.merge(modifiedCorrelationMap)
+    new_columns = payload.merge(correlation_addedColumns)
 
     #TODO come up with the better way to test if the schema is not set
     #if the schema is already there replace it
     unless (currentSchemaString.length < 5)
-      current_schema = JSON.parse(currentSchemaString)
+      current_schema = JSON.parse(currentSchemaString)["message"]
 
-      schema= current_schema["schema"]
-      columns = schema["columns"]
+      columns = JSON.parse(current_schema)["columns"]
 
       # get the current columns and their types
       current_columns=Hash.new
       columns.each do |k, v|
         current_columns[k] = v["type"]
       end
+
+      new_columns.each do |k, v|
+        new_columns[k] = v.upcase
+      end
+
+      puts "comparing columns ________________________"
+      puts current_columns
+      puts new_columns
 
       # testing if the schema has changed
       if (current_columns == new_columns)
@@ -62,14 +81,9 @@ module SchemaManager
       # combine and create the new columns
       new_schema = new_columns.merge(current_columns)
 
-      # getting the updated schema
-      updated_schema = current_schema
-      updated_schema.delete("schema")
-
       #else we need to create a new schema
     else
       updated_schema = Hash.new
-      updated_schema["tableName"] = schemaDefinition["tableName"]
       new_schema = new_columns
     end
 
@@ -77,22 +91,29 @@ module SchemaManager
     new_schema.each do |key, value|
       new_value = Hash.new
       new_value["type"] = value.upcase
-      new_value["isIndexed"] = "true"
+      new_value["isIndex"] = true
       new_value["isScoreParam"] = false
       new_schema[key] = new_value
     end
 
     #replacing the schema map with the new one
     schema_map = {"columns" => new_schema}
-    updated_schema["schema"] = schema_map
+    updated_schema = Hash.new
+    updated_schema["columns"]=new_schema
+    updated_schema["primaryKeys"] = Array.new
 
 
-    setSchema_request = agent.post("url")
-    setSchema_request.body = updated_schema
+    setSchema_request = agent.post(processedURL)
+    setSchema_request["Content-Type"] = "application/json"
+
+    puts processedURL
+    setSchema_request.body = LogStash::Json.dump(updated_schema)
+    #setSchema_request.body = updated_schema.to_json
+    puts "______________UPDATED SCHEMA__________"
+    puts updated_schema.to_json
     setSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
     response = agent.execute(setSchema_request)
-
-    return updated_schema
+    return response
   end
 
 end
