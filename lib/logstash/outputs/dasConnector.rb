@@ -88,8 +88,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
   #event related data
   config :payloadFields, :required => :true, :validate => :hash
-  config :metaData, :required => :true
-  config :correlationData, :required => :true
+  config :metaData, :required => :true, :validate => :hash
+  config :correlationData, :required => :true, :validate => :hash
   config :arbitraryValues, :required => :true, :validate => :hash
 
   #schema related details

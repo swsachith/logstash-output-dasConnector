@@ -22,25 +22,26 @@ module SchemaManager
   def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition)
 
     processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
-    #getSchema_request = agent.get("http://localhost:9763/portal/controllers/apis/analytics.jag?type=10&tableName=LOGS")
+
     getSchema_request = agent.get(processedSchemaURL)
     getSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
 
     schema_response = agent.execute(getSchema_request)
-    puts schema_response["body"]
+
     new_response = ""
     schema_response.read_body { |c| new_response << c }
     return new_response
+
   end
 
   # this method alters the schema if needed
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,currentSchemaString,url)
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,currentSchema,url)
     processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
     # add the "meta_" for the metaData map fields
     modifiedMetaDataMap = Hash.new
     metadata_map.each do |key , value|
-      modifiedCorrelationMap["meta_"+key] = value
+      modifiedMetaDataMap["meta_"+key] = value
     end
 
     # add the correlation_ for the correlation map fields
@@ -55,14 +56,14 @@ module SchemaManager
       modifiedArbitraryMap["_"+key] = value
     end
 
-    correlation_addedColumns = modifiedArbitraryMap.merge(modifiedCorrelationMap)
+    metaData_and_correlation_maps = modifiedMetaDataMap.merge(modifiedCorrelationMap)
+    correlation_addedColumns = modifiedArbitraryMap.merge(metaData_and_correlation_maps)
     new_columns = payload.merge(correlation_addedColumns)
 
     #TODO come up with the better way to test if the schema is not set
     #if the schema is already there replace it
-    unless (currentSchemaString.length < 5)
-      current_schema = JSON.parse(currentSchemaString)["message"]
-
+    unless (currentSchema.length < 5)
+      current_schema = JSON.parse(currentSchema)["message"]
       columns = JSON.parse(current_schema)["columns"]
 
       # get the current columns and their types
@@ -103,7 +104,6 @@ module SchemaManager
     end
 
     #replacing the schema map with the new one
-    schema_map = {"columns" => new_schema}
     updated_schema = Hash.new
     updated_schema["columns"]=new_schema
     updated_schema["primaryKeys"] = Array.new
