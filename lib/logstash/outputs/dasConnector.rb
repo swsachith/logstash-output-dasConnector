@@ -129,40 +129,19 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   def receive(event)
     return unless output?(event)
 
-    #setting the base parameters for the http request
-    if @mapping
-      modifiedEvent = Hash.new
-      @mapping.each do |k, v|
-        modifiedEvent[k] = event.sprintf(v)
-      end
-    else
-      modifiedEvent = event.to_hash
-    end
-
     # send the log event
-    wso2EventResponse = sendWSO2Event(modifiedEvent, event)
+    wso2EventResponse = sendWSO2Event(event)
 
-  end
-
-  def encode(hash)
-    return hash.collect do |key, value|
-      CGI.escape(key) + "=" + CGI.escape(value)
-    end.join("&")
   end
 
   #-- This method creates the WSO2 Events from the logstash events and sends them
-  def sendWSO2Event(modifiedEvent, event)
+  def sendWSO2Event(event)
+
+    modifiedEvent = event.to_hash
     publishURL =  @url+"/portal/controllers/apis/analytics.jag?type=24"
 
-    case @http_method
-      when "put"
-        request = @agent.put(event.sprintf(publishURL))
-      when "post"
-        request = @agent.post(event.sprintf(publishURL))
-      else
-        @logger.error("Unknown verb:", :verb => @http_method)
-    end
-
+    #setting the request headers
+    request = @agent.post(event.sprintf(publishURL))
     if @headers
       @headers.each do |k, v|
         request.headers[k] = event.sprintf(v)
@@ -170,11 +149,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
-
     request["Content-Type"] = "application/json"
-
-    #constructing the wso2Event
-    wso2Event = Hash.new
 
     #process the timestamp to epoch time
     unless (modifiedEvent["@timestamp"].nil?)
@@ -200,7 +175,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     # getting the arbitrary values map with its values from the event
     @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
 
-
+    #constructing the wso2Event
+    wso2Event = Hash.new
     wso2Event["streamName"] = @streamName
     wso2Event["streamVersion"] = @streamVersion
     wso2Event["payloadData"] = @payloadData

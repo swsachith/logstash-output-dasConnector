@@ -27,14 +27,13 @@ module SchemaManager
     getSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
 
     schema_response = agent.execute(getSchema_request)
-
     new_response = ""
     schema_response.read_body { |c| new_response << c }
     return new_response
 
   end
 
-  # this method alters the schema if needed
+  # This method sets the schema if required
   def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,currentSchema,url)
     processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
@@ -60,12 +59,11 @@ module SchemaManager
     correlation_addedColumns = modifiedArbitraryMap.merge(metaData_and_correlation_maps)
     new_columns = payload.merge(correlation_addedColumns)
 
-    #TODO come up with the better way to test if the schema is not set
     #if the schema is already there replace it
-    unless (currentSchema.length < 5)
-      current_schema = JSON.parse(currentSchema)["message"]
-      columns = JSON.parse(current_schema)["columns"]
+    current_schema = JSON.parse(currentSchema)["message"]
+    columns = JSON.parse(current_schema)["columns"]
 
+    unless columns.size < 1
       # get the current columns and their types
       current_columns=Hash.new
       columns.each do |k, v|
@@ -75,10 +73,6 @@ module SchemaManager
       new_columns.each do |k, v|
         new_columns[k] = v.upcase
       end
-
-      puts "comparing columns ________________________"
-      puts current_columns
-      puts new_columns
 
       # testing if the schema has changed
       if (current_columns == new_columns)
@@ -90,7 +84,6 @@ module SchemaManager
 
       #else we need to create a new schema
     else
-      updated_schema = Hash.new
       new_schema = new_columns
     end
 
@@ -112,11 +105,7 @@ module SchemaManager
     setSchema_request = agent.post(processedURL)
     setSchema_request["Content-Type"] = "application/json"
 
-    puts processedURL
     setSchema_request.body = LogStash::Json.dump(updated_schema)
-    #setSchema_request.body = updated_schema.to_json
-    puts "______________UPDATED SCHEMA__________"
-    puts updated_schema.to_json
     setSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
     response = agent.execute(setSchema_request)
     return response
