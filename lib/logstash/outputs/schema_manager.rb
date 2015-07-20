@@ -34,16 +34,22 @@ module SchemaManager
   end
 
   # this method alters the schema if needed
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map, schemaDefinition,currentSchemaString,url)
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,currentSchemaString,url)
     processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
-    # combine the arbitrary map and the payload maps
+    # add the "meta_" for the metaData map fields
+    modifiedMetaDataMap = Hash.new
+    metadata_map.each do |key , value|
+      modifiedCorrelationMap["meta_"+key] = value
+    end
+
+    # add the correlation_ for the correlation map fields
     modifiedCorrelationMap = Hash.new
     correlation_map.each do |key , value|
       modifiedCorrelationMap["correlation_"+key] = value
     end
 
-    # combine the arbitrary map and the payload maps
+    # add the _ for arbitrary map keys
     modifiedArbitraryMap = Hash.new
     arbitrary_map.each do |key , value|
       modifiedArbitraryMap["_"+key] = value

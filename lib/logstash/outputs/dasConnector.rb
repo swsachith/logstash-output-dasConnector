@@ -92,7 +92,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   config :correlationData, :required => :true
   config :arbitraryValues, :required => :true, :validate => :hash
 
-  #schema related details map
+  #schema related details
   config :schemaDefinition, :required => :true, :validate => :hash
   config :streamName, :required => :true, :validate => :string
   config :streamVersion, :required => :true, :validate => :string
@@ -121,10 +121,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     puts current_schema
     puts "************************setting the new schema *******************\n"
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@schemaDefinition,current_schema,processedURL)
-
-    #adding stream definition
-    #addStreamRequest = StreamManager.addStreamDefinition(@agent, @streamDefinition, @payloadFields, @url)
+    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,@schemaDefinition,current_schema,processedURL)
 
   end
 
@@ -142,11 +139,9 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       modifiedEvent = event.to_hash
     end
 
-    # create the Log event
-    wso2EventResponse = processWSO2Event(modifiedEvent, event)
+    # send the log event
+    wso2EventResponse = sendWSO2Event(modifiedEvent, event)
 
-    puts "printing wso2 event ==== \n"
-    puts wso2EventResponse
   end
 
   def encode(hash)
@@ -155,23 +150,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end.join("&")
   end
 
-  # def encode
-
-
-  # ---- WSO2 connector related event configuration ------
-  # --------example configuration ------------
-  #          streamName : "TEST",
-  #          streamVersion : "1.0.0",
-  #          timestamp : 54326543254532, "optional"
-  #          payloadData : {
-  #          },
-  #          metaData : {
-  #          },
-  #          correlationData : {
-  #          }
-  #          arbitraryDataMap : {
-  #          }
-  def processWSO2Event(modifiedEvent, event)
+  #-- This method creates the WSO2 Events from the logstash events and sends them
+  def sendWSO2Event(modifiedEvent, event)
     publishURL =  @url+"/portal/controllers/apis/analytics.jag?type=24"
 
     case @http_method
@@ -199,12 +179,18 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #processing the payloadData Field
     @payloadData = Hash[@payloadFields.map { |key, value| [key, modifiedEvent[key]] }]
 
+    #processing the payloadData Field
+    @metaDataMap = Hash[@metaData.map { |key, value| [key, modifiedEvent[key]] }]
+
     #processing the correlationData Field
     activityID = modifiedEvent["activity_id"]
     if activityID.nil?
       activityID = (0...8).map { (65 + rand(26)).chr }.join
     end
-    @correlationData["activity_id"] = activityID
+
+    activityArray = Array.new(1)
+    activityArray[0] = activityID
+    @correlationData["activity_id"] = activityArray
 
     # getting the arbitrary values map with its values from the event
     @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
@@ -216,16 +202,12 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     wso2Event["streamName"] = @streamName
     wso2Event["streamVersion"] = @streamVersion
     wso2Event["payloadData"] = @payloadData
-    wso2Event["metaData"] = @metaData
+    wso2Event["metaData"] = @metaDataMap
     wso2Event["correlationData"] = @correlationData
     wso2Event["arbitraryDataMap"] = @processedArbitraryValues
 
     begin
-
       request.body = LogStash::Json.dump(wso2Event)
-      #request.body = '{"streamName":"logs","streamVersion":"1.0.0","payloadData":{"type":"syslog"},"metaData":{},"correlationData":{},"arbitraryDataMap":{}}'
-      #request.body = "{'streamName':'logs','streamVersion':'1.0.0','payloadData':{'type':'syslog'},'metaData':{},'correlationData':{},'arbitraryDataMap':{}}"
-
       response = @agent.execute(request)
 
       # Consume body to let this connection be reused
@@ -235,7 +217,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     rescue Exception => e
       @logger.warn("Unhandled exception", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
-    puts request.body
     return response
   end
 
