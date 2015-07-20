@@ -176,6 +176,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     #constructing the wso2Event
     wso2Event = Hash.new
 
+    #process the timestamp to epoch time
+    unless (modifiedEvent["@timestamp"].nil?)
+      modifiedEvent["timestamp"] = DateTime.parse(modifiedEvent["@timestamp"].to_s).to_time.to_i
+    end
+
     #processing the payloadData Field
     @payloadData = Hash[@payloadFields.map { |key, value| [key, modifiedEvent[key]] }]
 
@@ -196,9 +201,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
 
 
-    #puts @processedArbitraryValues
-    #@arbitraryValues["timestamp"] = DateTime.parse(modifiedEvent["syslog_timestamp"]).to_time.to_i
-    #puts modifiedEvent["syslog_timestamp"]
     wso2Event["streamName"] = @streamName
     wso2Event["streamVersion"] = @streamVersion
     wso2Event["payloadData"] = @payloadData
