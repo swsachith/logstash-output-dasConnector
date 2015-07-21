@@ -19,6 +19,12 @@
 module SchemaManager
 
   #This method returns the existing schema definition
+  #
+  #agent => the web agent FTW:Agent
+  #url => URL of the DAS Server
+  #schemaDefinition => Schema Definition map
+  #AuthenticationHeader => The authentication details
+
   def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition,authenticationHeader)
 
     processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
@@ -26,7 +32,12 @@ module SchemaManager
     getSchema_request = agent.get(processedSchemaURL)
     getSchema_request.headers["Authorization"] = authenticationHeader
 
-    schema_response = agent.execute(getSchema_request)
+    begin
+      schema_response = agent.execute(getSchema_request)
+    rescue Exception => e
+      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+    end
+
     new_response = ""
     schema_response.read_body { |c| new_response << c }
     return new_response
@@ -34,6 +45,14 @@ module SchemaManager
   end
 
   # This method sets the schema if required
+  #
+  #agent => the web agent FTW:Agent
+  #payload => map of payload fields and values
+  #arbtrary_map => map of arbitrary fields and values
+  #correlation_map => map of correlation fields and values
+  #metadata_map => map of metadata fields and values
+  #schemaDefinition => map of schema definition values
+
   def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,
       currentSchema,url,authenticationHeader)
 
@@ -106,11 +125,17 @@ module SchemaManager
 
     setSchema_request = agent.post(processedURL)
     setSchema_request["Content-Type"] = "application/json"
-
-    setSchema_request.body = LogStash::Json.dump(updated_schema)
     setSchema_request.headers["Authorization"] = authenticationHeader
-    response = agent.execute(setSchema_request)
+
+    begin
+      setSchema_request.body = LogStash::Json.dump(updated_schema)
+      response = agent.execute(setSchema_request)
+    rescue Exception => e
+      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+    end
+
     return response
+
   end
 
 end

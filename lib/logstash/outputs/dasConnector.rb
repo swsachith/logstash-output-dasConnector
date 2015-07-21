@@ -103,6 +103,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   config :password, :required => :true, :validate => :string
   config :authenticationHeader
 
+  # This is the intializer for the plugin
   public
   def register
     require "ftw"
@@ -124,6 +125,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
   end
 
+  # Thie method gets executed for each event recieved
   public
   def receive(event)
     return unless output?(event)
@@ -134,6 +136,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   end
 
   #-- This method creates the WSO2 Events from the logstash events and sends them
+  # event => The event received by the plugin
   def sendWSO2Event(event)
 
     modifiedEvent = event.to_hash
@@ -187,12 +190,12 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       request.body = LogStash::Json.dump(wso2Event)
       response = @agent.execute(request)
 
-      # Consume body to let this connection be reused
+      #consume the body
       rbody = ""
       response.read_body { |c| rbody << c }
         #puts rbody
     rescue Exception => e
-      @logger.warn("Unhandled exception", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
     return response
   end
