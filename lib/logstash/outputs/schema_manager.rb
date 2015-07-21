@@ -25,7 +25,7 @@ module SchemaManager
   #schemaDefinition => Schema Definition map
   #AuthenticationHeader => The authentication details
 
-  def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition,authenticationHeader)
+  def SchemaManager.getSchemaDefinition(agent, url, schemaDefinition, authenticationHeader)
 
     processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
 
@@ -53,27 +53,33 @@ module SchemaManager
   #metadata_map => map of metadata fields and values
   #schemaDefinition => map of schema definition values
 
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,
-      currentSchema,url,authenticationHeader)
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, correlation_map, metadata_map, schemaDefinition,
+      currentSchema, url, authenticationHeader)
 
     processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
     # add the "meta_" for the metaData map fields
     modifiedMetaDataMap = Hash.new
-    metadata_map.each do |key , value|
-      modifiedMetaDataMap["meta_"+key] = value
+    unless metadata_map.nil?
+      metadata_map.each do |key, value|
+        modifiedMetaDataMap["meta_"+key] = value
+      end
     end
 
     # add the correlation_ for the correlation map fields
     modifiedCorrelationMap = Hash.new
-    correlation_map.each do |key , value|
-      modifiedCorrelationMap["correlation_"+key] = value
+    unless correlation_map.nil?
+      correlation_map.each do |key, value|
+        modifiedCorrelationMap["correlation_"+key] = value
+      end
     end
 
     # add the _ for arbitrary map keys
     modifiedArbitraryMap = Hash.new
-    arbitrary_map.each do |key , value|
-      modifiedArbitraryMap["_"+key] = value
+    unless arbitrary_map.nil?
+      arbitrary_map.each do |key, value|
+        modifiedArbitraryMap["_"+key] = value
+      end
     end
 
     metaData_and_correlation_maps = modifiedMetaDataMap.merge(modifiedCorrelationMap)

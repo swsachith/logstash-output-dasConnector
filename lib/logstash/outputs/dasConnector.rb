@@ -88,10 +88,10 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   #
 
   #event related data
-  config :payloadFields, :required => :true, :validate => :hash
-  config :metaData, :required => :true, :validate => :hash
-  config :correlationData, :required => :true, :validate => :hash
-  config :arbitraryValues, :required => :true, :validate => :hash
+  #config :payloadFields
+  #config :metaData
+  #config :correlationData, :required => :true, :validate => :hash
+  config :storedFields, :required => :true, :validate => :hash
 
   #schema related details
   config :schemaDefinition, :required => :true, :validate => :hash
@@ -118,12 +118,16 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
     #get the stream definition
     streamDefinition = StreamManager.getStreamDefinition(@agent,processedURL,@authenticationHeader)
+    @payloadFields = streamDefinition["payloadData"]
+    @metaDataMap = streamDefinition["metaData"]
+    @correlationData = streamDefinition["correlationData"]
+
 
     #Get the Schema
     current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition,@authenticationHeader)
 
     #setting the new schema if required
-    SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,
+    SchemaManager.setSchemaDefinition(@agent, @payloadFields, @storedFields, @correlationData,@metaData,
                                            @schemaDefinition,current_schema,processedURL,@authenticationHeader)
 
   end
@@ -162,10 +166,14 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     #processing the payloadData Field
-    @payloadData = Hash[@payloadFields.map { |key, value| [key, modifiedEvent[key]] }]
+    unless @payloadFields.nil?
+      @payloadData = Hash[@payloadFields.map { |key, value| [key, modifiedEvent[key]] }]
+    end
 
-    #processing the payloadData Field
-    @metaDataMap = Hash[@metaData.map { |key, value| [key, modifiedEvent[key]] }]
+    #processing the metadata Field
+    unless @metaData.nil?
+      @metaDataMap = Hash[@metaData.map { |key, value| [key, modifiedEvent[key]] }]
+    end
 
     #processing the correlationData Field
     # todo : check if there's an correlation id in the stream and do this only if there is
@@ -179,7 +187,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @correlationData["activity_id"] = activityArray
 
     # getting the arbitrary values map with its values from the event
-    @processedArbitraryValues = Hash[@arbitraryValues.map { |key, value| [key, modifiedEvent[key]] }]
+    @processedArbitraryValues = Hash[@storedFields.map { |key, value| [key, modifiedEvent[key]] }]
 
     #constructing the wso2Event
     wso2Event = Hash.new
@@ -201,6 +209,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     rescue Exception => e
      # @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
+    puts wso2Event
     return response
   end
 
