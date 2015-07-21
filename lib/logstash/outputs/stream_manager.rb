@@ -22,7 +22,7 @@ module StreamManager
   #
   #
   #
-public
+  public
   def StreamManager.getStreamDefinition(agent, url, authenticationHeader)
     processedSchemaURL = url+"?type=23"
 
@@ -59,4 +59,38 @@ public
     return streamDefinition
   end
 
+  private
+  def processColumns(columns)
+    unless columns.nil?
+      columns.each do |key, value|
+
+        detailsMap = Hash.new
+
+        values = value.split(" ")
+        detailsMap["type"] = values[0]
+        detailsMap["isIndex"] = nil
+        detailsMap["isScoreParam"] = nil
+
+        values.each do |config|
+          if config == "-i"
+            detailsMap["isIndex"]=true
+          elsif config == "-sp"
+            detailsMap["isScoreParam"] = true
+          end
+        end
+
+        #if indexing and scoreParam is not set, set it to false
+        if detailsMap["isIndex"].nil?
+          detailsMap["isIndex"] = false
+        end
+
+        if detailsMap["isScoreParam"].nil?
+          detailsMap["isScoreParam"] = false
+        end
+        columns[key] = detailsMap
+      end
+    end
+
+    return columns
+  end
 end
