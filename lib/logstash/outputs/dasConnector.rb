@@ -116,11 +116,14 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     processedURL = @url  + "/portal/controllers/apis/analytics.jag"
     @authenticationHeader = "Basic " + Base64.encode64(@username+":"+@password).strip
 
+    #get the stream definition
+    streamDefinition = StreamManager.getStreamDefinition(@agent,processedURL,@authenticationHeader)
+
     #Get the Schema
     current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition,@authenticationHeader)
 
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,
+    SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,
                                            @schemaDefinition,current_schema,processedURL,@authenticationHeader)
 
   end
@@ -165,6 +168,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @metaDataMap = Hash[@metaData.map { |key, value| [key, modifiedEvent[key]] }]
 
     #processing the correlationData Field
+    # todo : check if there's an correlation id in the stream and do this only if there is
     activityID = modifiedEvent["activity_id"]
     if activityID.nil?
       activityID = (0...8).map { (65 + rand(26)).chr }.join
@@ -195,7 +199,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       response.read_body { |c| rbody << c }
         #puts rbody
     rescue Exception => e
-      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+     # @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
     return response
   end

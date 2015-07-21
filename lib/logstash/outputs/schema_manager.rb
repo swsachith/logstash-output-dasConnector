@@ -35,7 +35,7 @@ module SchemaManager
     begin
       schema_response = agent.execute(getSchema_request)
     rescue Exception => e
-      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+      #@logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
 
     new_response = ""
@@ -92,6 +92,7 @@ module SchemaManager
       end
 
       new_columns.each do |k, v|
+        # todo test if you need to have the uppercase
         new_columns[k] = v.upcase
       end
 
@@ -112,6 +113,8 @@ module SchemaManager
     new_schema.each do |key, value|
       new_value = Hash.new
       new_value["type"] = value.upcase
+      # todo stop changing the indexing for the current schema
+      # todo have some configuration to specify whether these should be indexed or not
       new_value["isIndex"] = true
       new_value["isScoreParam"] = false
       new_schema[key] = new_value
@@ -131,7 +134,7 @@ module SchemaManager
       setSchema_request.body = LogStash::Json.dump(updated_schema)
       response = agent.execute(setSchema_request)
     rescue Exception => e
-      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+      #@logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
 
     return response

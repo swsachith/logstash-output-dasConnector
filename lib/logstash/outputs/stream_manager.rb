@@ -18,44 +18,45 @@
 
 module StreamManager
 
-  # This method sets the stream definition
-  # params
-  # example stream definition
-  # streamDef = {
-  #          name : "TEST",
-  #          version : "1.0.0",
-  #          nickName : "test",
-  #          description : "sample description"
-  #          payloadData : {
-  #              name : "STRING",
-  #              married : "BOOLEAN",
-  #              age : "INTEGER"
-  #          },
-  #         metaData : {
-  #              timestamp : "LONG"
-  #          },
-  #         correlationData : {
+  # This method gets the stream definition
   #
-  #          },
-  #          tags : []
-  #      }
+  #
+  #
 public
-  def StreamManager.addStreamDefinition(agent, provided_streamDefinition, payloadFields, url)
+  def StreamManager.getStreamDefinition(agent, url, authenticationHeader)
+    processedSchemaURL = url+"?type=23"
+
+    getStreamDefinition_request = agent.post(processedSchemaURL)
+    getStreamDefinition_request.headers["Authorization"] = authenticationHeader
+    getStreamDefinition_request["Content-Type"] = "application/json"
+
+    streamInformation = Hash.new
+    streamInformation["name"] = "logs"
+    streamInformation["version"] = "1.0.0"
+    getStreamDefinition_request.body = streamInformation.to_json
+
+    begin
+      response = agent.execute(getStreamDefinition_request)
+      streamDefinition_string = ""
+      response.read_body { |c| streamDefinition_string << c }
+    rescue Exception => e
+      #@logger.warn("Excetption Ocurred: ", :request => getStreamDefinition_request, :response => streamDefinition, :exception => e, :stacktrace => e.backtrace)
+    end
+
+    message = JSON.parse(streamDefinition_string)["message"]
+
+    metaData_message = JSON.parse(message)["metaData"]
+    correlationData_message = JSON.parse(message)["correlationData"]
+    payload_message = JSON.parse(message)["payloadData"]
+
     streamDefinition = Hash.new
-    streamDefinition = provided_streamDefinition
-    streamDefinition["payloadData"] = payloadFields
-    addStreamRequest = agent.post(url)
+    streamDefinition["metaData"] = metaData_message
+    streamDefinition["correlationData"] =correlationData_message
+    streamDefinition["payloadData"] = payload_message
 
-    #dumping the payload as a json
-    addStreamRequest.body = LogStash::Json.dump(streamDefinition)
+    puts streamDefinition
 
-    addStream_response = agent.execute(addStreamRequest)
-
-    # Consume body to let this connection be reused
-    #rbody = ""
-    #response.read_body { |c| rbody << c }
-
-    return addStreamRequest.body
+    return streamDefinition
   end
 
 end
