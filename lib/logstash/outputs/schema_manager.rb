@@ -19,12 +19,12 @@
 module SchemaManager
 
   #This method returns the existing schema definition
-  def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition)
+  def SchemaManager.getSchemaDefinition(agent, url,schemaDefinition,authenticationHeader)
 
     processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
 
     getSchema_request = agent.get(processedSchemaURL)
-    getSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
+    getSchema_request.headers["Authorization"] = authenticationHeader
 
     schema_response = agent.execute(getSchema_request)
     new_response = ""
@@ -34,7 +34,9 @@ module SchemaManager
   end
 
   # This method sets the schema if required
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,currentSchema,url)
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map,correlation_map,metadata_map, schemaDefinition,
+      currentSchema,url,authenticationHeader)
+
     processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
 
     # add the "meta_" for the metaData map fields
@@ -106,7 +108,7 @@ module SchemaManager
     setSchema_request["Content-Type"] = "application/json"
 
     setSchema_request.body = LogStash::Json.dump(updated_schema)
-    setSchema_request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
+    setSchema_request.headers["Authorization"] = authenticationHeader
     response = agent.execute(setSchema_request)
     return response
   end

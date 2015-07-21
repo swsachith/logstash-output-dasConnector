@@ -27,6 +27,7 @@ require "schema_manager"
 
 require "json"
 require "date"
+require "base64"
 
 class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
 
@@ -97,6 +98,11 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   config :streamName, :required => :true, :validate => :string
   config :streamVersion, :required => :true, :validate => :string
 
+  # authentication details
+  config :username, :required => :true, :validate => :string
+  config :password, :required => :true, :validate => :string
+  config :authenticationHeader
+
   public
   def register
     require "ftw"
@@ -104,24 +110,17 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @agent = FTW::Agent.new
     # TODO(sissel): SSL verify mode?
 
-    if @content_type.nil?
-      case @format
-        when "form";
-          @content_type = "application/x-www-form-urlencoded"
-        when "json";
-          @content_type = "application/json"
-      end
-    end
+    @content_type = "application/json"
 
     processedURL = @url  + "/portal/controllers/apis/analytics.jag"
+    @authenticationHeader = "Basic " + Base64.encode64(@username+":"+@password).strip
 
     #Get the Schema
-    current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition)
-    puts "******************printing the current schema ****************************************\n"
-    puts current_schema
-    puts "************************setting the new schema *******************\n"
+    current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition,@authenticationHeader)
+
     #setting the new schema if required
-    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,@schemaDefinition,current_schema,processedURL)
+    puts SchemaManager.setSchemaDefinition(@agent, @payloadFields, @arbitraryValues, @correlationData,@metaData,
+                                           @schemaDefinition,current_schema,processedURL,@authenticationHeader)
 
   end
 
@@ -148,7 +147,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       end
     end
 
-    request.headers["Authorization"] = "Basic YWRtaW46YWRtaW4="
+    request.headers["Authorization"] = @authenticationHeader
     request["Content-Type"] = "application/json"
 
     #process the timestamp to epoch time
