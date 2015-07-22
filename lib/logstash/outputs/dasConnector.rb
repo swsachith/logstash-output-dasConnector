@@ -175,8 +175,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     #processing the correlationData Field
-    correlationDataMap = Hash.new
-    unless @correlationData["activity_id"].nil
+    correlationDataMap = Hash[@correlationData.map { |key, value| [key, modifiedEvent[key]] }]
+    unless @correlationData["activity_id"].nil?
       activityID = modifiedEvent["activity_id"]
       if activityID.nil?
         activityID = (0...8).map { (65 + rand(26)).chr }.join
@@ -207,7 +207,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       rbody = ""
       response.read_body { |c| rbody << c }
     rescue Exception => e
-     # @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
+      @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
     return response
   end
