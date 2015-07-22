@@ -209,7 +209,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     rescue Exception => e
      # @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
-    puts wso2Event
     return response
   end
 

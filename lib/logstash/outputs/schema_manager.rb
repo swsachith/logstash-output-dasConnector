@@ -89,48 +89,70 @@ module SchemaManager
     #if the schema is already there replace it
     current_schema = JSON.parse(currentSchema)["message"]
     columns = JSON.parse(current_schema)["columns"]
+    primaryKeys = JSON.parse(currentSchema)["primaryKeys"]
 
     unless columns.size < 1
-      # get the current columns and their types
-      current_columns=Hash.new
-      columns.each do |k, v|
-        current_columns[k] = v["type"]
-      end
-
-      new_columns.each do |k, v|
-        # todo test if you need to have the uppercase
-        new_columns[k] = v.upcase
-      end
+      new_columns = SchemaManager.processColumns(new_columns)
 
       # testing if the schema has changed
-      if (current_columns == new_columns)
+      schemaUpdated = true
+      new_columns.each do |key,new_column_sub_field|
+
+        #check if it's a payload value
+        #if so don't change the values - skip
+        unless payload[key].nil?
+          new_columns[key] = columns[key]
+          #continue with the next value
+          next
+        end
+
+        #for other values other than the stream defined
+        #compare them and update the schema if necessary
+        unless columns[key].nil?
+          column = columns[key]
+          new_column_sub_field.each do |sub_key, sub_value|
+            if column[sub_key] == sub_value
+              next
+            else
+              schemaUpdated = false
+              break
+            end
+          end
+        else
+          schemaUpdated = false
+          break
+        end
+      end
+
+      if (schemaUpdated)
         return
       end
 
+      #add fields that were removed in the new columns ( added to the schema and then removed from the new columns)
+      #so those fields won't get dumped
+      columns.each do |key, value|
+        if new_columns[key].nil?
+          new_columns[key] = columns[key]
+        end
+      end
+
       # combine and create the new columns
-      new_schema = new_columns.merge(current_columns)
+      new_schema = columns.merge(new_columns)
 
       #else we need to create a new schema
     else
       new_schema = new_columns
     end
 
-    #adding other necessary fields and formating
-    new_schema.each do |key, value|
-      new_value = Hash.new
-      new_value["type"] = value.upcase
-      # todo stop changing the indexing for the current schema
-      # todo have some configuration to specify whether these should be indexed or not
-      new_value["isIndex"] = true
-      new_value["isScoreParam"] = false
-      new_schema[key] = new_value
-    end
-
     #replacing the schema map with the new one
     updated_schema = Hash.new
     updated_schema["columns"]=new_schema
-    updated_schema["primaryKeys"] = Array.new
 
+    unless primaryKeys.nil?
+      updated_schema["primaryKeys"] = primaryKeys
+    else
+      updated_schema["primaryKeys"] = Array.new
+    end
 
     setSchema_request = agent.post(processedURL)
     setSchema_request["Content-Type"] = "application/json"
@@ -145,6 +167,41 @@ module SchemaManager
 
     return response
 
+  end
+
+  private
+  def SchemaManager.processColumns(columns)
+    unless columns.nil?
+      columns.each do |key, value|
+
+        detailsMap = Hash.new
+
+        values = value.split(" ")
+        detailsMap["type"] = values[0].upcase
+        detailsMap["isIndex"] = nil
+        detailsMap["isScoreParam"] = nil
+
+        values.each do |config|
+          if config == "-i"
+            detailsMap["isIndex"]=true
+          elsif config == "-sp"
+            detailsMap["isScoreParam"] = true
+          end
+        end
+
+        #if indexing and scoreParam is not set, set it to false
+        if detailsMap["isIndex"].nil?
+          detailsMap["isIndex"] = false
+        end
+
+        if detailsMap["isScoreParam"].nil?
+          detailsMap["isScoreParam"] = false
+        end
+        columns[key] = detailsMap
+      end
+    end
+
+    return columns
   end
 
 end
