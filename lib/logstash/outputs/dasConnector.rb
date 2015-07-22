@@ -122,7 +122,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @metaDataMap = streamDefinition["metaData"]
     @correlationData = streamDefinition["correlationData"]
 
-
     #Get the Schema
     current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition,@authenticationHeader)
 
@@ -176,15 +175,17 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     #processing the correlationData Field
-    # todo : check if there's an correlation id in the stream and do this only if there is
-    activityID = modifiedEvent["activity_id"]
-    if activityID.nil?
-      activityID = (0...8).map { (65 + rand(26)).chr }.join
-    end
+    correlationDataMap = Hash.new
+    unless @correlationData["activity_id"].nil
+      activityID = modifiedEvent["activity_id"]
+      if activityID.nil?
+        activityID = (0...8).map { (65 + rand(26)).chr }.join
+      end
 
-    activityArray = Array.new(1)
-    activityArray[0] = activityID
-    @correlationData["activity_id"] = activityArray
+      activityArray = Array.new(1)
+      activityArray[0] = activityID
+      correlationDataMap["activity_id"] = activityArray
+    end
 
     # getting the arbitrary values map with its values from the event
     @processedArbitraryValues = Hash[@storedFields.map { |key, value| [key, modifiedEvent[key]] }]
@@ -195,7 +196,7 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     wso2Event["streamVersion"] = @streamVersion
     wso2Event["payloadData"] = @payloadData
     wso2Event["metaData"] = @metaDataMap
-    wso2Event["correlationData"] = @correlationData
+    wso2Event["correlationData"] = correlationDataMap
     wso2Event["arbitraryDataMap"] = @processedArbitraryValues
 
     begin
@@ -205,7 +206,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       #consume the body
       rbody = ""
       response.read_body { |c| rbody << c }
-        #puts rbody
     rescue Exception => e
      # @logger.warn("Excetption Ocurred: ", :request => request, :response => response, :exception => e, :stacktrace => e.backtrace)
     end
