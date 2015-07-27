@@ -175,8 +175,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     end
 
     #processing the correlationData Field
-    correlationDataMap = Hash[@correlationData.map { |key, value| [key, modifiedEvent[key]] }]
-    unless @correlationData["activity_id"].nil?
+    unless @correlationFields.nil?
+      correlationDataMap = Hash[@correlationFields.map { |key, value| [key, modifiedEvent[key]] }]
       activityID = modifiedEvent["activity_id"]
       if activityID.nil?
         activityID = (0...8).map { (65 + rand(26)).chr }.join
@@ -185,6 +185,8 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
       activityArray = Array.new(1)
       activityArray[0] = activityID
       correlationDataMap["activity_id"] = activityArray
+    else
+      correlationDataMap = Hash.new
     end
 
     # getting the arbitrary values map with its values from the event
