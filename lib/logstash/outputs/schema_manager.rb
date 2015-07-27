@@ -25,9 +25,9 @@ module SchemaManager
   #schemaDefinition => Schema Definition map
   #AuthenticationHeader => The authentication details
 
-  def SchemaManager.getSchemaDefinition(agent, url, schemaDefinition, authenticationHeader)
+  def SchemaManager.getSchemaDefinition(agent, url, streamName, authenticationHeader)
 
-    processedSchemaURL = url+"?type=10&tableName="+schemaDefinition["tableName"]
+    processedSchemaURL = url+"?type=10&tableName="+streamName
 
     getSchema_request = agent.get(processedSchemaURL)
     getSchema_request.headers["Authorization"] = authenticationHeader
@@ -53,10 +53,10 @@ module SchemaManager
   #metadata_map => map of metadata fields and values
   #schemaDefinition => map of schema definition values
 
-  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, correlation_map, metadata_map, schemaDefinition,
+  def SchemaManager.setSchemaDefinition(agent, payload, arbitrary_map, correlation_map, metadata_map, streamName,
       currentSchema, url, authenticationHeader)
 
-    processedURL = url + "?type=15&tableName="+schemaDefinition["tableName"]
+    processedURL = url + "?type=15&tableName="+streamName
 
     # add the "meta_" for the metaData map fields
     modifiedMetaDataMap = Hash.new

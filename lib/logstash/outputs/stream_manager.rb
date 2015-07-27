@@ -23,7 +23,7 @@ module StreamManager
   # url => URL of the server
   # authenticationHeaders => authenticationInfo
   public
-  def StreamManager.getStreamDefinition(agent, url, authenticationHeader)
+  def StreamManager.getStreamDefinition(agent, url, authenticationHeader,streamName, streamVersion)
     processedSchemaURL = url+"?type=23"
 
     getStreamDefinition_request = agent.post(processedSchemaURL)
@@ -31,8 +31,8 @@ module StreamManager
     getStreamDefinition_request["Content-Type"] = "application/json"
 
     streamInformation = Hash.new
-    streamInformation["name"] = "logs"
-    streamInformation["version"] = "1.0.0"
+    streamInformation["name"] = streamName
+    streamInformation["version"] = streamVersion
     getStreamDefinition_request.body = streamInformation.to_json
 
     begin

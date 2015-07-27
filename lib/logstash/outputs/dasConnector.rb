@@ -94,7 +94,6 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
   config :storedFields, :required => :true, :validate => :hash
 
   #schema related details
-  config :schemaDefinition, :required => :true, :validate => :hash
   config :streamName, :required => :true, :validate => :string
   config :streamVersion, :required => :true, :validate => :string
 
@@ -117,17 +116,17 @@ class LogStash::Outputs::DASConnector < LogStash::Outputs::Base
     @authenticationHeader = "Basic " + Base64.encode64(@username+":"+@password).strip
 
     #get the stream definition
-    streamDefinition = StreamManager.getStreamDefinition(@agent,processedURL,@authenticationHeader)
+    streamDefinition = StreamManager.getStreamDefinition(@agent,processedURL,@authenticationHeader,@streamName,@streamVersion)
     @payloadFields = streamDefinition["payloadData"]
     @metaDataMap = streamDefinition["metaData"]
     @correlationData = streamDefinition["correlationData"]
 
     #Get the Schema
-    current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @schemaDefinition,@authenticationHeader)
+    current_schema = SchemaManager.getSchemaDefinition(@agent,processedURL, @streamName,@authenticationHeader)
 
     #setting the new schema if required
     SchemaManager.setSchemaDefinition(@agent, @payloadFields, @storedFields, @correlationData,@metaData,
-                                           @schemaDefinition,current_schema,processedURL,@authenticationHeader)
+                                           @streamName,current_schema,processedURL,@authenticationHeader)
 
   end
 
